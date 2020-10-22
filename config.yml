@@ -1,0 +1,11 @@
+subjects:
+  - '001'
+  - '002'
+
+#T2w:
+#  '001':
+#    path: path_to_T2w_001.nii.gz
+#  '002':
+#    path: path_to_T2w_002.nii.gz
+ 
+output_dir: results
