@@ -8,7 +8,8 @@ import bids
 from glob import glob
 from snakemake import snakemake
 from parse import get_parser
-
+import json
+from snakebids.inputs import create_bids_input_config
 
 bids.config.set_option('extension_initial_dot', True)
 
@@ -29,87 +30,25 @@ def run(command, env={}):
 
 
 
-def create_yaml_cfg( config_dict):
-    """Create config yml using a dict, and return path to it in the output folder"""
-
-
-    config_file = os.path.join(args.output_dir,'code',f'inputs_config.yml')
-    os.makedirs(os.path.dirname(config_file),exist_ok=True)
-
-    with open(config_file, 'w') as outfile:
-        yaml.dump(config_dict, outfile, default_flow_style=False)
-
-    return config_file
-
-
-
-
-def add_images_to_config(config_dict, suffix, search_terms, layout):
-    """ returns: config_dict: updated config with fields updated
-                -zip_subjects, zip_sessions, in_images, search_terms  """
-    
-    subjects = config_dict['subjects']
-    sessions = config_dict['sessions']
-
-    #add suffix to search terms
-    search_terms['suffix'] = suffix
-
-    #initialize the new entries to config_dict (will be updated in loop below)
-    config_dict['zip_subjects'][suffix] = []
-    config_dict['zip_sessions'][suffix] = []
-    config_dict['in_images'][suffix] = {}
-    config_dict['search_terms'][suffix] = {**search_terms}
-    
-    all_imgs = []
-
-    #first, get the list of bidsimages
-    for subject in subjects:
-        if sessions == None:
-            imgs = layout.get(subject=subject,extension='nii.gz',**search_terms)
-            if imgs is not None:
-                all_imgs = all_imgs + imgs
-                config_dict['in_images'][suffix][subject] = []
-                config_dict['zip_subjects'][suffix].append(subject)
-        else:
-            for session in sessions:
-                imgs = layout.get(subject=subject,session=session,extension='nii.gz',**search_terms)
-                if imgs is not None:
-                    all_imgs = all_imgs + imgs
-                    config_dict['in_images'][suffix][subject] = {session: [] }
-                    config_dict['zip_subjects'][suffix].append(subject)
-                    config_dict['zip_sessions'][suffix].append(session)
-
-
-    #iterate through images, adding to the config file that snakemake will use
-    for img in all_imgs:
-
-        entities = img.get_entities()
-        subject = entities['subject']
-        suffix = entities['suffix']
-
-        if 'session' in entities.keys(): 
-            session = entities['session']
-            config_dict['in_images'][suffix][subject][session].append( {'path': img.path, 'entities': {**entities} } )
-        else:
-            if sessions == None:
-                config_dict['in_images'][suffix][subject].append( {'path': img.path, 'entities': {**entities}})
-            else:
-                print(f'ERROR: {img.path}, sessions must be defined for all images if sessions are used')
-                sys.exit()
-
-    return config_dict
-
-
-
-
 
 #start of main
 
 parser =  get_parser()
-args = parser.parse_args()
+all_args = parser.parse_known_args()
 
-if not args.skip_bids_validator:
-    run('bids-validator %s'%args.bids_dir)
+args = all_args[0]
+snakemake_args = all_args[1]
+
+
+#for running snakemake
+snakemake_dir = os.path.dirname(os.path.realpath(__file__))
+
+
+#load up workflow config file
+workflow_config = os.path.join(snakemake_dir,'cfg','config.yml')
+with open(workflow_config, 'r') as infile:
+    config = yaml.load(infile)
+
 
 
 
@@ -125,47 +64,36 @@ if args.run is not None:
     search_terms['run'] = args.run
 
 
-#start by getting bids layout from pybids
-layout = BIDSLayout(args.bids_dir,derivatives=False,validate=False,index_metadata=False)
+#create inputs config file 
+# (uses pybids to search/grab, stores lookups in a config yaml for snakemake)
+inputs_config = os.path.join(args.output_dir,'code',f'inputs_config.yml')
 
-# only for a subset of subjects
-if args.participant_label:
-    subjects = args.participant_label
-    sessions = layout.get_sessions(subject=subjects,**search_terms)
-# get all subjects
-else:
-    subjects = layout.get_subjects(**search_terms)
-    sessions = layout.get_sessions(**search_terms)
-
-if len(sessions) == 0:
-    sessions = None
+create_bids_input_config(bids_dir=args.bids_dir, suffixes=config['in_suffixes'], 
+                        out_config_yml=inputs_config, 
+                        participant_label=args.participant_label,
+                        search_terms=search_terms)
 
 
-    
 # running participant level
 if args.analysis_level == "participant":
 
-
-    # use pybids to get the paths to input images, then create a dict for each suffix type
-    #   which is indexed by subject, and contains the path and entities
+    #runs snakemake, using the workflow config and inputs config to override 
+    snakefile = os.path.join(snakemake_dir,'Snakefile')
     
-    # initialize the config_dict 
-    config_dict = {'subjects': subjects, 'sessions': sessions,'output_dir': args.output_dir, 'zip_subjects':{}, 'zip_sessions':{}, 'in_images': {}, 'search_terms': {}}
+    if args.use_snakemake_api:
+        snakemake(snakefile,configfiles=[workflow_config, inputs_config], workdir=args.output_dir)
+    else:
+        #run snakemake command-line (passing any leftover args from argparse)
+        snakemake_cmd_list = ['snakemake',
+                                f'--snakefile {snakefile}',
+                                f'--directory {args.output_dir}',
+                                f'--configfile {workflow_config} {inputs_config}',
+                                *snakemake_args]
+
+        snakemake_cmd = ' '.join(snakemake_cmd_list)
+        run(snakemake_cmd)
 
 
-    #populate config file
-    config_dict = add_images_to_config(config_dict=config_dict, suffix='T1w', search_terms=search_terms, layout=layout)
-    config_dict = add_images_to_config(config_dict=config_dict, suffix='T2w', search_terms=search_terms, layout=layout)
-    config_dict = add_images_to_config(config_dict=config_dict, suffix='dwi', search_terms=search_terms, layout=layout)
-
-
-    # create yaml config file from the dict
-    config_file = create_yaml_cfg(config_dict)
-
-    # pass that file to snakemake, which supplements/overrides the workflow config file
-    snakemake('Snakefile',configfiles=[config_file], dryrun=True, printshellcmds=True)
-
-    
 # running group level
 elif args.analysis_level == "group":
     print('insert report generation here!')

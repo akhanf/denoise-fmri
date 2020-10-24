@@ -1,0 +1,6 @@
+bids_dir: bids
+in_suffixes: 
+  - 'T1w'
+  - 'T2w'
+  - 'dwi'
+output_dir: results

@@ -1,4 +1,5 @@
 import argparse
+import json
 
 def get_parser():
      
@@ -19,18 +20,11 @@ def get_parser():
                        'provided all subjects should be analyzed. Multiple '
                        'participants can be specified with a space separated list.',
                        nargs="+")
-    parser.add_argument('--session', help='Use the specified session, otherwise will process all sessions')
-
-    #maybe remove suffix -- is not really typical to have a choice of suffix in an app (i.e. designed for particular suffixes)
-#    parser.add_argument('--suffix', help='Only use images with the specified suffix entity in the filename',
-#                        default=['T2w'],nargs='+')
-    parser.add_argument('--acq', help='Only use images with the specified acq entity in the filename')
-    parser.add_argument('--run', help='Only use images with the specified run entity in the filename')
-    parser.add_argument('--search', help='Wildcard search term to locate in image filename. Use this option '
-                        'when multiple images match for a subject')
-
-    parser.add_argument('--skip_bids_validator', help='Whether or not to perform BIDS dataset validation',
-                       action='store_true', default=True)
+    parser.add_argument('--session', help='Use the specified session, otherwise will process all sessions (default: %(default)s)', default=None)
+    parser.add_argument('--acq', help='Only use images with the specified acq entity in the filename (default: %(default)s)', default=None)
+    parser.add_argument('--run', help='Only use images with the specified run entity in the filename (default: %(default)s)', default=None)
+    parser.add_argument('--use_snakemake_api', help='Use snakemake python API instead of running cmdline snakemake (default: %(default)s)',
+            action='store_true', default=True)
 
 
     return parser
