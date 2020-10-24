@@ -37,7 +37,10 @@ def add_images_to_config(config_dict, suffix, search_terms, layout):
                 imgs = layout.get(subject=subject,session=session,extension='nii.gz',**search_terms)
                 if imgs is not None:
                     all_imgs = all_imgs + imgs
-                    config_dict['in_images'][suffix][subject] = {session: [] }
+                    if subject in config_dict['in_images'][suffix]:
+                        config_dict['in_images'][suffix][subject].update({session: [] })
+                    else:
+                        config_dict['in_images'][suffix][subject] = {session: [] }
                     config_dict['zip_subjects'][suffix].append(subject)
                     config_dict['zip_sessions'][suffix].append(session)
 
