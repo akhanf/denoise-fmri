@@ -2,11 +2,11 @@
 import os
 import subprocess
 import sys
+import yaml
 from bids import BIDSLayout
 import bids
 from glob import glob
 from snakemake import snakemake
-
 from parse import get_parser
 
 
@@ -32,19 +32,74 @@ def run(command, env={}):
 def create_yaml_cfg( config_dict):
     """Create config yml using a dict, and return path to it in the output folder"""
 
-    import yaml
-#    from datetime import datetime
-#    date_string = datetime.now().strftime('%Y%m%d_%Hh%Mm%Ss')
 
-#    config_file = os.path.join(args.output_dir,'code',f'config_{date_string}.yml')
-#    os.makedirs(os.path.dirname(config_file),exist_ok=True)
-
-    config_file = 'inputs_config.yml'
+    config_file = os.path.join(args.output_dir,'code',f'inputs_config.yml')
+    os.makedirs(os.path.dirname(config_file),exist_ok=True)
 
     with open(config_file, 'w') as outfile:
         yaml.dump(config_dict, outfile, default_flow_style=False)
 
     return config_file
+
+
+
+
+def add_images_to_config(config_dict, suffix, search_terms, layout):
+    """ returns: config_dict: updated config with fields updated
+                -zip_subjects, zip_sessions, in_images, search_terms  """
+    
+    subjects = config_dict['subjects']
+    sessions = config_dict['sessions']
+
+    #add suffix to search terms
+    search_terms['suffix'] = suffix
+
+    #initialize the new entries to config_dict (will be updated in loop below)
+    config_dict['zip_subjects'][suffix] = []
+    config_dict['zip_sessions'][suffix] = []
+    config_dict['in_images'][suffix] = {}
+    config_dict['search_terms'][suffix] = {**search_terms}
+    
+    all_imgs = []
+
+    #first, get the list of bidsimages
+    for subject in subjects:
+        if sessions == None:
+            imgs = layout.get(subject=subject,extension='nii.gz',**search_terms)
+            if imgs is not None:
+                all_imgs = all_imgs + imgs
+                config_dict['in_images'][suffix][subject] = []
+                config_dict['zip_subjects'][suffix].append(subject)
+        else:
+            for session in sessions:
+                imgs = layout.get(subject=subject,session=session,extension='nii.gz',**search_terms)
+                if imgs is not None:
+                    all_imgs = all_imgs + imgs
+                    config_dict['in_images'][suffix][subject] = {session: [] }
+                    config_dict['zip_subjects'][suffix].append(subject)
+                    config_dict['zip_sessions'][suffix].append(session)
+
+
+    #iterate through images, adding to the config file that snakemake will use
+    for img in all_imgs:
+
+        entities = img.get_entities()
+        subject = entities['subject']
+        suffix = entities['suffix']
+
+        if 'session' in entities.keys(): 
+            session = entities['session']
+            config_dict['in_images'][suffix][subject][session].append( {'path': img.path, 'entities': {**entities} } )
+        else:
+            if sessions == None:
+                config_dict['in_images'][suffix][subject].append( {'path': img.path, 'entities': {**entities}})
+            else:
+                print(f'ERROR: {img.path}, sessions must be defined for all images if sessions are used')
+                sys.exit()
+
+    return config_dict
+
+
 
 
 
@@ -59,7 +114,7 @@ if not args.skip_bids_validator:
 
 
 #default search term is by suffix
-search_terms = {'suffix': args.suffix}
+search_terms = {'suffix': ['T2w', 'dwi']}
 
 #add optional search terms
 if args.session is not None:
@@ -77,7 +132,7 @@ layout = BIDSLayout(args.bids_dir,derivatives=False,validate=False,index_metadat
 if args.participant_label:
     subjects = args.participant_label
     sessions = layout.get_sessions(subject=subjects,**search_terms)
-# for all subjects
+# get all subjects
 else:
     subjects = layout.get_subjects(**search_terms)
     sessions = layout.get_sessions(**search_terms)
@@ -86,32 +141,7 @@ if len(sessions) == 0:
     sessions = None
 
 
-
-# what to pass to snakemake?
-#  set --config variables?  could have a schema defined as a standard.. 
-#   e.g.:  subjects (list), input_files (dict, indexed by subject), output_folder (string), 
-#
-# with API, can either pass config dict (but must be flat! ie cannot be nested), or make a config json/yaml, and pass that as a config file.. 
-#   latter is probably better, as there is provenance too with the configfile.. 
-
-
-#different ways reading input files for a given subject:
-# 1) take list of images (from particular suffix), to be merged in the pipeline  (iterate over subject)        ** this will be similar to 2)
-#       in this case, want the input image list to be indexed by subject
-#
-# 2) take a single image for each subject/session (iterate over subject and session)           ** implement this for now
-#       in this case, want the input image to be indexed by subject (and optional session) 
-#
-# 3) iterate over all found images (sessions, acquisitions etc)
-#       in this case, want tthe input image to be indexed by all the entities (to make it unique)       ** this one will take thought.. may not be practically used very often.. 
-#
-# hash entities into a bids string -> this is unique -- this can be the wildcard??
-# 1-1 mapping between input files and bids string hashes
-# e.g.:   sub-01/sub-01_run-01.nii.gz,  sub-01/sub-01_run-02.nii.gz
-# wildcard could be the entire bids-string, and could have a get_entities() function that pulls out the key/vals
-
     
-
 # running participant level
 if args.analysis_level == "participant":
 
@@ -119,69 +149,23 @@ if args.analysis_level == "participant":
     # use pybids to get the paths to input images, then create a dict for each suffix type
     #   which is indexed by subject, and contains the path and entities
     
-    config_dict = {'subjects': subjects, 'sessions': sessions,'output_dir': args.output_dir, 'zip_subjects':{}, 'zip_sessions':{}, 'in_images': {}}
-    for suffix in args.suffix:
-        print(suffix)
-        config_dict['zip_subjects'][suffix] = []
-        config_dict['zip_sessions'][suffix] = []
-        config_dict['in_images'][suffix] = {}
+    # initialize the config_dict 
+    config_dict = {'subjects': subjects, 'sessions': sessions,'output_dir': args.output_dir, 'zip_subjects':{}, 'zip_sessions':{}, 'in_images': {}, 'search_terms': {}}
 
-        #refine to single search term
-        search_terms['suffix'] = suffix
 
-        
-        #for this type of image, want no more than 1 per session    
-        all_imgs = []
-        for subject in subjects:
-            if sessions == None:
-                imgs = layout.get(subject=subject,extension='nii.gz',**search_terms)
-                if len(imgs) > 1:
-                    print('ERROR: more than one image matched for sub-{subject} please specify additional search terms to avoid ambiguity')
-                    sys.exit()
-                elif len(imgs) == 1:
-                    all_imgs.append(*imgs)
+    #populate config file
+    config_dict = add_images_to_config(config_dict=config_dict, suffix='T1w', search_terms=search_terms, layout=layout)
+    config_dict = add_images_to_config(config_dict=config_dict, suffix='T2w', search_terms=search_terms, layout=layout)
+    config_dict = add_images_to_config(config_dict=config_dict, suffix='dwi', search_terms=search_terms, layout=layout)
 
-            else:
-                for session in sessions:
-                    imgs = layout.get(subject=subject,session=session,extension='nii.gz',**search_terms)
-                    if len(imgs) > 1:
-                        print('ERROR: more than one image matched for sub-{subject}/ses-{session}, please specify additional search terms to avoid ambiguity')
-                        sys.exit()
-                    elif len(imgs) == 1:
-                        all_imgs.append(*imgs)
 
-        #iterate through images, adding to the config file that snakemake will use
-        for img in all_imgs:
-
-            entities = img.get_entities()
-            subject = entities['subject']
-            suffix = entities['suffix']
-
-            if 'session' in entities.keys(): 
-                session = entities['session']
-                if subject in config_dict['in_images'][suffix]: 
-                    config_dict['in_images'][suffix][subject].update(  {session: {'path': img.path, 'entities': {**entities} }} )
-                else: 
-                    config_dict['in_images'][suffix][subject] = {session: {'path': img.path, 'entities': {**entities} }}
-                config_dict['zip_subjects'][suffix].append(subject)
-                config_dict['zip_sessions'][suffix].append(session)
-
-            else:
-                if sessions == None:
-                    config_dict['in_images'][suffix][subject] = {'path': img.path, 'entities': {**entities} }
-                else:
-                    print(f'ERROR: {img.path}, sessions must be defined for all images if sessions are used')
-                    sys.exit()
-                config_dict['zip_subjects'][suffix].append(subject)
-            
-
-    # create a config file, and pass that:
+    # create yaml config file from the dict
     config_file = create_yaml_cfg(config_dict)
 
+    # pass that file to snakemake, which supplements/overrides the workflow config file
     snakemake('Snakefile',configfiles=[config_file], dryrun=True, printshellcmds=True)
 
     
-
 # running group level
 elif args.analysis_level == "group":
     print('insert report generation here!')
