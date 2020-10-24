@@ -47,7 +47,7 @@ snakemake_dir = os.path.dirname(os.path.realpath(__file__))
 #load up workflow config file
 workflow_config = os.path.join(snakemake_dir,'cfg','config.yml')
 with open(workflow_config, 'r') as infile:
-    config = yaml.load(infile)
+    config = yaml.load(infile, Loader=yaml.FullLoader)
 
 
 
