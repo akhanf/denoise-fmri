@@ -1,6 +1,28 @@
-bids_dir: bids
-in_suffixes: 
-  - 'T1w'
-  - 'T2w'
-  - 'dwi'
-output_dir: results
+bids_dir: path_to_bids_directory
+derivatives:
+  - paths_to_any_derivatives_for_inputs_here
+
+pybids_inputs:
+  bold:
+    filters:
+      suffix: 'bold'
+      extension: '.nii.gz'
+      scope: 'raw' #raw, derivatives (or can be pipeline name too!)
+    wildcards:
+      - subject
+      - session
+      - task
+      - acquisition
+      - run
+  T1w:
+    filters:  #these are pybids filters, or anything passable to get()
+      suffix: 'T1w'
+      extension: '.nii.gz'
+      scope: 'raw' #raw, derivatives (or can be pipeline name too!)
+    wildcards: #any of the following that exist in the path will be replaced by a wildcard 
+      - subject
+      - session
+      - run
+      - acquisition
+
+      

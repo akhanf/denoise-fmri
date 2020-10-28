@@ -1,0 +1,36 @@
+from snakebids import bids
+
+#this is actually not needed!
+#subjects = config['subjects']
+#sessions = config['sessions']
+#if len(sessions) == 0:
+#    subj_wildcards = { 'subject': '{subject}'}
+#else:
+#    subj_wildcards = { 'subject': '{subject}', 'session': '{session}' }
+
+#since subjects/sessions are in the input_zip_lists, and input_wildcards..
+# may want to have some flexibility to built different wildcard groups, e.g. for merging dwi 
+
+
+rule all:
+    input: 
+        bet = expand(bids(root='results',desc='bet',suffix='T1w.nii.gz',**config['input_wildcards']['T1w']), zip, **config['input_zip_lists']['T1w']),
+
+
+
+rule import_t1w:
+    input: config['input_path']['T1w']
+    output: bids(root='results',suffix='T1w.nii.gz',**config['input_wildcards']['T1w'])
+
+
+rule bet:
+    input: bids(root='results',suffix='T1w.nii.gz',**config['input_wildcards']['T1w'])
+    output: bids(root='results',desc='bet',suffix='T1w.nii.gz',**config['input_wildcards']['T1w'])
+   
+
+
+#rule avg_t1:
+#    input: expand(bids(root='results',desc='bet',suffix='T1w.nii.gz',**config['input_wildcards']['T1w']), run=config['input_zip_lists']['T1w']['run'], allow_missing=True)
+#    output: bids(root='results',desc='bet',suffix='T1w.nii.gz', **wildcards_no_run)
+
+

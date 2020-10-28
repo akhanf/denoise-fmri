@@ -9,7 +9,7 @@ from glob import glob
 from snakemake import snakemake
 from parse import get_parser
 import json
-from snakebids.inputs import create_bids_input_config
+from snakebids.inputs import get_input_config_from_bids
 
 bids.config.set_option('extension_initial_dot', True)
 
@@ -51,37 +51,55 @@ with open(workflow_config, 'r') as infile:
 
 
 
-
-#default search term is by suffix
-search_terms = {'suffix': ['T2w', 'dwi']}
+search_terms = dict()
 
 #add optional search terms
+if args.participant_label is not None:
+    search_terms['subject'] = args.participant_label
 if args.session is not None:
     search_terms['session'] = args.session
+
+# still  need to come up with ways to specify modality-specific search terms from command-line (other than --config ...)
+"""
 if args.acq is not None:
     search_terms['acquisition'] = args.acq
 if args.run is not None:
     search_terms['run'] = args.run
-
+"""
 
 #create inputs config file 
 # (uses pybids to search/grab, stores lookups in a config yaml for snakemake)
 inputs_config = os.path.join(args.output_dir,'code',f'inputs_config.yml')
 
-create_bids_input_config(bids_dir=args.bids_dir, suffixes=config['in_suffixes'], 
-                        out_config_yml=inputs_config, 
-                        participant_label=args.participant_label,
-                        search_terms=search_terms)
+
+
+layout = BIDSLayout(args.bids_dir,derivatives=False,validate=False,index_metadata=False, **search_terms)
+
+#if len(sessions) == 0:
+#    sessions = None
+
+inputs_config_dict = get_input_config_from_bids(bids_layout=layout, inputs_dict=config['pybids_inputs'], **search_terms)
+
+inputs_config_dict['subjects'] = layout.get_subjects(**search_terms)
+inputs_config_dict['sessions'] = layout.get_sessions(**search_terms)
+
+#write updated config file
+os.makedirs(os.path.dirname(inputs_config),exist_ok=True)
+
+with open(inputs_config, 'w') as outfile:
+    yaml.dump(inputs_config_dict, outfile, default_flow_style=False)
+
+
 
 
 # running participant level
 if args.analysis_level == "participant":
 
     #runs snakemake, using the workflow config and inputs config to override 
-    snakefile = os.path.join(snakemake_dir,'Snakefile')
+    snakefile = os.path.join(snakemake_dir,'workflow/Snakefile')
     
     if args.use_snakemake_api:
-        snakemake(snakefile,configfiles=[workflow_config, inputs_config], workdir=args.output_dir)
+        snakemake(snakefile,configfiles=[workflow_config, inputs_config], workdir=args.output_dir, dryrun=True)
     else:
         #run snakemake command-line (passing any leftover args from argparse)
         snakemake_cmd_list = ['snakemake',

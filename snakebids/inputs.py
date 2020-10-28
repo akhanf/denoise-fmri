@@ -1,103 +1,87 @@
 from bids import BIDSLayout
-import yaml
 import os
+import json
+import re
+
+# use pybids to get the paths to input images, then create a input path and wildcards for each suffix type
+
+def read_bids_tags(bids_json=None):
+    if bids_json == None:
+        bids_json = os.path.join(os.path.dirname(os.path.realpath(__file__)),'bids_tags.json')
+    with open(bids_json, 'r') as infile:
+        bids_tags = json.load(infile)
+    return bids_tags
+
+def get_input_config_from_bids(bids_layout, inputs_dict, **filters ):
+    """ returns: dict with input_path and input_wildcards"""
+
+    bids_tags = read_bids_tags()
+
+    config = dict({'input_path': {}, 'input_zip_lists': {}, 'input_wildcards': {}})
 
 
-# use pybids to get the paths to input images, then create a dict for each suffix type
-#   which is indexed by subject, and contains the path and entities
 
-def add_images_to_config(config_dict, suffix, search_terms, layout):
-    """ returns: config_dict: updated config with fields updated
-                -zip_subjects, zip_sessions, in_images, search_terms  """
 
-    subjects = config_dict['subjects']
-    sessions = config_dict['sessions']
 
-    #add suffix to search terms
-    search_terms['suffix'] = suffix
+    for input_name in inputs_dict.keys():
+        
+        imgs, = [bids_layout.get(**inputs_dict[input_name]['filters'], **filters)]
+        paths = set()
+        zip_lists = {}
+        wildcards = {}
+        for img in imgs:
+            path = img.path
+            for wildcard_name in inputs_dict[input_name]['wildcards']:
 
-    #initialize the new entries to config_dict (will be updated in loop below)
-    config_dict['zip_subjects'][suffix] = []
-    config_dict['zip_sessions'][suffix] = []
-    config_dict['in_images'][suffix] = {}
-    config_dict['search_terms'][suffix] = {**search_terms}
-    
-    all_imgs = []
+                if wildcard_name in bids_tags:
+                    tag = bids_tags[wildcard_name]
+                else:
+                    tag = wildcard_name  #if it's not in the bids_tags dictionary, then just use the name itself as the tag
 
-    #first, get the list of bidsimages
-    for subject in subjects:
-        if sessions == None:
-            imgs = layout.get(subject=subject,extension='nii.gz',**search_terms)
-            if imgs is not None:
-                all_imgs = all_imgs + imgs
-                config_dict['in_images'][suffix][subject] = []
-                config_dict['zip_subjects'][suffix].append(subject)
-        else:
-            for session in sessions:
-                imgs = layout.get(subject=subject,session=session,extension='nii.gz',**search_terms)
-                if imgs is not None:
-                    all_imgs = all_imgs + imgs
-                    if subject in config_dict['in_images'][suffix]:
-                        config_dict['in_images'][suffix][subject].update({session: [] })
+                   
+
+
+                #this changes e.g. sub-001 to sub-{subject} in the path (so snakemake can use the wildcards)
+                if wildcard_name in img.get_entities():
+                    
+                    ##HACK FIX FOR acq vs acquisition etc  -- should eventually update the bids() function to also use bids_tags.json, where e.g. acquisition -> acq is defined.. -- then, can use wildcard_name instead of out_name.. 
+                    if wildcard_name not in ['subject', 'session']:
+                        out_name = tag
                     else:
-                        config_dict['in_images'][suffix][subject] = {session: [] }
-                    config_dict['zip_subjects'][suffix].append(subject)
-                    config_dict['zip_sessions'][suffix].append(session)
+                        out_name = wildcard_name
+ 
+                    if out_name not in zip_lists:
+                        zip_lists[out_name] = []
+                        wildcards[out_name] = {}
+                    pattern = '{tag}-([a-zA-Z0-9]+)'.format(tag=bids_tags[wildcard_name])
+                    replace = '{tag}-{{{replace}}}'.format(tag=bids_tags[wildcard_name],replace=out_name)
+                    match = re.search(pattern,path)
+                    replaced = re.sub(pattern,  replace , path)
+                    #update the path with the {wildcards} -- uses the value from the string (not from the pybids entities), since that has issues with integer formatting (e.g. for run=01)
+                    path = replaced
+                    zip_lists[out_name].append(match[1])
+                    wildcards[out_name] = f'{{{out_name}}}'
 
+            paths.add(path)
+            
 
-    #iterate through images, adding to the config file that snakemake will use
-    for img in all_imgs:
+        #now, check to see if unique
+        if len(paths) > 1:
+            print(f'ERROR: more than one snakemake filename for {input_name}:')
+            print(f'  Either add new bids entities to {input_name} -> wildcards, or filters to narrow the search')
+            print(paths)
+            return None
 
-        entities = img.get_entities()
-        subject = entities['subject']
-        suffix = entities['suffix']
+        in_path = list(paths)[0]
 
-        if 'session' in entities.keys(): 
-            session = entities['session']
-            config_dict['in_images'][suffix][subject][session].append( {'path': img.path, 'entities': {**entities} } )
-        else:
-            if sessions == None:
-                config_dict['in_images'][suffix][subject].append( {'path': img.path, 'entities': {**entities}})
-            else:
-                print(f'ERROR: {img.path}, sessions must be defined for all images if sessions are used')
-                sys.exit()
+        config['input_path'][input_name] = in_path
+        config['input_zip_lists'][input_name] = zip_lists
+        config['input_wildcards'][input_name] = wildcards
 
-    return config_dict
+        #print(wildcards)
 
+    return config
 
-
-def create_bids_input_config(bids_dir, suffixes, out_config_yml, participant_label=None, search_terms={}):
-
-    #start by getting bids layout from pybids
-    layout = BIDSLayout(bids_dir,derivatives=False,validate=False,index_metadata=False)
-
-    # only for a subset of subjects
-    if participant_label:
-        subjects = participant_label
-        sessions = layout.get_sessions(subject=subjects,**search_terms)
-    # get all subjects
-    else:
-        subjects = layout.get_subjects(**search_terms)
-        sessions = layout.get_sessions(**search_terms)
-
-    if len(sessions) == 0:
-        sessions = None
-
-    # initialize the config_dict 
-    config_dict = {'subjects': subjects, 'sessions': sessions, 
-                    'zip_subjects':{}, 'zip_sessions':{}, 'in_images': {}, 'search_terms': {}}
-
-
-    #populate config file with the input images
-    for suffix in suffixes:
-        config_dict = add_images_to_config(config_dict=config_dict, suffix=suffix, search_terms=search_terms, layout=layout)
-
-#    config_file = os.path.join(args.output_dir,'code',f'inputs_config.yml')
-
-    os.makedirs(os.path.dirname(out_config_yml),exist_ok=True)
-
-    with open(out_config_yml, 'w') as outfile:
-        yaml.dump(config_dict, outfile, default_flow_style=False)
 
 
 
