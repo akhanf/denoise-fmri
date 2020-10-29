@@ -179,20 +179,27 @@ def read_bids_tags(bids_json=None):
         bids_tags = json.load(infile)
     return bids_tags
 
-def get_input_config_from_bids(bids_layout, inputs_dict, **filters ):
+def get_input_config_from_bids(config, bids_layout, inputs_dict, **filters ):
     """ returns: dict with input_path and input_wildcards"""
 
     bids_tags = read_bids_tags()
 
-    config = dict({'input_path': {}, 'input_zip_lists': {}, 'input_lists': {}, 'input_wildcards': {}})
+    config.update( dict({'input_path': {}, 'input_zip_lists': {}, 'input_lists': {}, 'input_wildcards': {}}))
 
 
 
-
+    
 
     for input_name in inputs_dict.keys():
-        
+
+        if config['debug']==True: print(f'grabbing pybids inputs for {input_name}..')
+
         imgs, = [bids_layout.get(**inputs_dict[input_name]['filters'], **filters)]
+        if len(imgs) == 0:
+            print(f'WARNING: no images found for {input_name}')
+            continue
+        
+        if config['debug']==True: print(f'  found {len(imgs)} images')
         paths = set()
         zip_lists = {}
         input_lists = {}
@@ -207,11 +214,10 @@ def get_input_config_from_bids(bids_layout, inputs_dict, **filters ):
                     tag = wildcard_name  #if it's not in the bids_tags dictionary, then just use the name itself as the tag
 
                    
-
-
                 #this changes e.g. sub-001 to sub-{subject} in the path (so snakemake can use the wildcards)
                 if wildcard_name in img.get_entities():
                     
+                    if config['debug']==True: print(f'    wildcard {wildcard_name} found entities for {path}')
                     ##HACK FIX FOR acq vs acquisition etc  -- should eventually update the bids() function to also use bids_tags.json, where e.g. acquisition -> acq is defined.. -- then, can use wildcard_name instead of out_name.. 
                     if wildcard_name not in ['subject', 'session']:
                         out_name = tag
@@ -222,8 +228,10 @@ def get_input_config_from_bids(bids_layout, inputs_dict, **filters ):
                         zip_lists[out_name] = []
                         input_lists[out_name] = set()
                         wildcards[out_name] = {}
-                    pattern = '{tag}-([a-zA-Z0-9]+)'.format(tag=bids_tags[wildcard_name])
-                    replace = '{tag}-{{{replace}}}'.format(tag=bids_tags[wildcard_name],replace=out_name)
+
+                    if config['debug']==True: print(f'    wildcard {wildcard_name} found entities for {path}')
+                    pattern = '{tag}-([a-zA-Z0-9]+)'.format(tag=tag)
+                    replace = '{tag}-{{{replace}}}'.format(tag=tag,replace=out_name)
                     match = re.search(pattern,path)
                     replaced = re.sub(pattern,  replace , path)
                     #update the path with the {wildcards} -- uses the value from the string (not from the pybids entities), since that has issues with integer formatting (e.g. for run=01)
@@ -241,7 +249,7 @@ def get_input_config_from_bids(bids_layout, inputs_dict, **filters ):
             print(f'  Either add new bids entities to {input_name} -> wildcards, or filters to narrow the search')
             print(paths)
             return None
-
+    
         in_path = list(paths)[0]
 
         #convert sets to lists
@@ -261,9 +269,9 @@ def get_input_config_from_bids(bids_layout, inputs_dict, **filters ):
 def generate_inputs_config(config):
     """ returns: updated config dict; function will also write the inputs_config.yml to standard output path """
     #generate inputs based on config
-    layout = BIDSLayout(config['bids_dir'],derivatives=False,validate=False,index_metadata=False, **config['search_terms'])
+    layout = BIDSLayout(config['bids_dir'],derivatives=config['derivatives'],validate=False,index_metadata=False, **config['search_terms'])
 
-    inputs_config_dict = get_input_config_from_bids(bids_layout=layout, inputs_dict=config['pybids_inputs'], **config['search_terms'])
+    inputs_config_dict = get_input_config_from_bids(config=config, bids_layout=layout, inputs_dict=config['pybids_inputs'], **config['search_terms'])
 
     inputs_config_dict['subjects'] = layout.get_subjects(**config['search_terms'])
     inputs_config_dict['sessions'] = layout.get_sessions(**config['search_terms'])
@@ -289,4 +297,5 @@ def get_wildcard_constraints(config):
     """ returns: dict containing the wildcard constraints for all the wildcards defined, using [a-zA-Z0-9]+ for all wildcards """
     bids_constraints = '[a-zA-Z0-9]+'
     return  { entity: bids_constraints for imgtype in config['input_lists'].keys() for entity in config['input_lists'][imgtype].keys() }
+
 

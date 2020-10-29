@@ -1,19 +1,54 @@
-bids_dir: path_to_bids_directory
-derivatives:
-  - paths_to_any_derivatives_for_inputs_here
-
 pybids_inputs:
-  bold:
+  derivatives: True  
+  #can alternatively have paths to derivatives folders
+    #derivatives:
+   #  - paths_to_any_derivatives_for_inputs_here
+   #  - paths_to_any_derivatives_for_inputs_here
+  preproc_bold:
     filters:
       suffix: 'bold'
+      desc: 'preproc'
       extension: '.nii.gz'
-      scope: 'raw' #raw, derivatives (or can be pipeline name too!)
+      scope: 'derivatives' #raw, derivatives (or can be pipeline name too!)
+      invalid_filters: 'allow'
     wildcards:
       - subject
       - session
       - task
       - acquisition
       - run
+      - space
+
+  preproc_mask:
+    filters:
+      suffix: 'mask'
+      desc: 'brain'
+      extension: '.nii.gz'
+      scope: 'derivatives' #raw, derivatives (or can be pipeline name too!)
+      datatype: 'func'
+      invalid_filters: 'allow'
+    wildcards:
+      - subject
+      - session
+      - task
+      - acquisition
+      - run
+      - space
+
+  confounds:
+    filters:
+      suffix: 'regressors'
+      desc: 'confounds'
+      extension: '.tsv'
+      scope: 'derivatives' #raw, derivatives (or can be pipeline name too!)
+      invalid_filters: 'allow'
+    wildcards:
+      - subject
+      - session
+      - task
+      - acquisition
+      - run
+
   T1w:
     filters:  #these are pybids filters, or anything passable to get()
       suffix: 'T1w'
@@ -25,18 +60,54 @@ pybids_inputs:
       - run
       - acquisition
 
+
+#enable printing debug statements during parsing -- disable if generating dag visualization
+debug: False
+
+
    
 #WIP: setting up analysis levels (e.g. participant, group) to point to different target rules 
 
 
+#these are the command-line parameters
+parse_args:
 
-#WIP:  setting up additional cmd-line options via config
-#parser:
-#  init:
-#    description: 'This is a snakebids App'
-#  arguments:
-#    - argument: '--session' 
-#      help: 'Use the specified session, otherwise will process all sessions (default: %(default)s)'
-#    - argument: '--acq' 
-#      help: 'Use the specified session, otherwise will process all sessions (default: %(default)s)'
-#
+  bids_dir:
+    help: The directory with the input dataset formatted according 
+          to the BIDS standard.
+
+  output_dir:
+    help: The directory where the output files 
+          should be stored. If you are running group level analysis
+          this folder should be prepopulated with the results of the
+          participant level analysis.
+
+  analysis_level: 
+    help: Level of the analysis that will be performed. 
+    choices:
+      - participant
+
+  --participant_label:
+    help: The label(s) of the participant(s) that should be analyzed. The label 
+          corresponds to sub-<participant_label> from the BIDS spec 
+          (so it does not include "sub-"). If this parameter is not 
+          provided all subjects should be analyzed. Multiple 
+          participants can be specified with a space separated list.
+    nargs: '+'
+
+  --confounds:
+    help: 'Confounds to use from list of regressors (default: %(default)s)'
+    nargs: '+'
+    default:
+      - white_matter
+      - csf
+      - trans_x
+      - trans_y
+      - trans_z
+      - rot_x
+      - rot_y
+      - rot_z
+
+
+
+

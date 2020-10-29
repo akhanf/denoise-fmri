@@ -7,7 +7,7 @@ from bids import BIDSLayout
 import bids
 from glob import glob
 from snakemake import snakemake
-from parse import get_parser
+import argparse
 import json
 
 bids.config.set_option('extension_initial_dot', True)
@@ -32,27 +32,28 @@ def run(command, env={}):
 
 #start of main
 
-parser =  get_parser()
+#get path of this file
+snakemake_dir = os.path.dirname(os.path.realpath(__file__))
+
+#replace with proper name of pipeline here
+parser = argparse.ArgumentParser(description='snakebids-app')
+
+#load up workflow config file
+snakebids_config = os.path.join(snakemake_dir,'cfg','snakebids.yml')
+with open(snakebids_config, 'r') as infile:
+    config = yaml.load(infile, Loader=yaml.FullLoader)
+
+#update the parser with config options
+for name, parse_args in config['parse_args'].items():
+    parser.add_argument(name, **parse_args)
+
 all_args = parser.parse_known_args()
 
 args = all_args[0]
 snakemake_args = all_args[1]
 
-
-#for running snakemake
-snakemake_dir = os.path.dirname(os.path.realpath(__file__))
-
-
-
-#load up workflow config file
-snakebids_config = os.path.join(snakemake_dir,'cfg','snakebids.yml')
-if not os.path.exists(snakebids_config):
-    print('ERROR: {snakebids_config} does not exist!')
-    sys.exit(1)
-
-with open(snakebids_config, 'r') as infile:
-    config = yaml.load(infile, Loader=yaml.FullLoader)
-
+#add arguments to config
+config.update(args.__dict__)
 
 search_terms = dict()
 
@@ -72,8 +73,8 @@ if args.run is not None:
 
 #override bids_dir, output_dir, search_terms in snakebids config
 config['search_terms'] = search_terms
-config['bids_dir'] = args.bids_dir
-config['output_dir'] = args.output_dir
+config['bids_dir'] = os.path.realpath(args.bids_dir)
+config['output_dir'] = os.path.realpath(args.output_dir)
 
 
 #create an updated snakebids config file
