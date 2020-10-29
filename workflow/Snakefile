@@ -27,84 +27,25 @@ wildcard_constraints:  **snakebids.get_wildcard_constraints(config)
 
 rule all:
     input: 
-# using the zip lists to expand over all scans, note use of the zip option in expand:
-#        bet = expand(bids(root='results',desc='bet',suffix='T1w.nii.gz',**config['input_wildcards']['T1w']), zip, **config['input_zip_lists']['T1w']),
-        ses_avg = expand(bids(root='results',desc='sesavg',suffix='bold.nii.gz',**config['subj_wildcards']), **config['input_lists']['bold']),
-#        denoised = expand(bids(root='results',desc='denoised',suffix='bold.nii.gz',**config['input_wildcards']['bold']), zip, **config['input_zip_lists']['bold']),
-#
-# using the regular lists to expand: -- this could fail if there are combinations of wildcards leading to files that do not exist.. 
-#        bet = expand(bids(root='results',desc='bet',suffix='T1w.nii.gz',**config['input_wildcards']['T1w']), **config['input_lists']['T1w']),
-#        denoised = expand(bids(root='results',desc='denoised',suffix='bold.nii.gz',**config['input_wildcards']['bold']), **config['input_lists']['bold']),
-#        combined = expand(bids(root='results',desc='group',suffix='combined.nii.gz',task='{task}'), task=config['input_lists']['bold']['task']),
-
-
-
-rule import_t1w:
-    input: config['input_path']['T1w']
-    output: bids(root='results',suffix='T1w.nii.gz',**config['input_wildcards']['T1w'])
-    shell: 'cp {input} {output}'
-
-
-rule bet:
-    input: bids(root='results',suffix='T1w.nii.gz',**config['input_wildcards']['T1w'])
-    output: bids(root='results',desc='bet',suffix='T1w.nii.gz',**config['input_wildcards']['T1w'])
-    shell: 'bet {input} {output}'
-
-
-
+        # using the zip lists to expand over all scans, note use of the zip option in expand:
+        denoised = expand(bids(root='results',desc='denoised',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']), zip, **config['input_zip_lists']['preproc_bold']),
 
 rule import_bold:
-    input: config['input_path']['bold']
-    output: bids(root='results',suffix='bold.nii.gz',**config['input_wildcards']['bold'])
+    input: config['input_path']['preproc_bold']
+    output: bids(root='results',desc='preproc',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold'])
     shell: 'cp {input} {output}'
 
-
-
 rule denoise:
-    input: bids(root='results',suffix='bold.nii.gz',**config['input_wildcards']['bold'])
-    output: bids(root='results',desc='denoised',suffix='bold.nii.gz',**config['input_wildcards']['bold'])
-    script: '../scripts/some_denoising_script.py' #this script will get the inputs, outputs, params etc..
-    
-#this rule does processing directly on the bids data (without importing first)
-#rule denoise:
-#    input: config['input_path']['bold']
-#    output: bids(root='results',desc='denoised',suffix='bold.nii.gz',**config['input_wildcards']['bold'])
+    input: 
+        nii = bids(root='results',desc='preproc',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']),
+        confounds_tsv = config['input_path']['confounds'],
+        mask_nii = config['input_path']['preproc_mask']
+    params:
+        confounds_to_use = config['confounds']
+    output: bids(root='results',desc='denoised',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold'])
+    conda:
+        'envs/nilearn.yml'
+    script: '../scripts/denoise.py'
 
-
-#    this dictionary comprehension does the trick: 
-#     { key: config['input_zip_lists']['bold'] for key not in ['task'] }
-
-
-## WANT TO FILTER THE ZIP_LIST THAT ONLY MATCHES CHOSEN WILDCARD VALUES
-#e.g. 
-#001 movie
-#001 rest
-#002 movie
-#002 rest 
-
-
-# if we want to do some analysis that takes data from all subjects with a single task, then
-#  our output file only has the {task} wildcard, so for the input, you need to expand over all the other wildcards
-#    want to basically create a filtered input_zip_list dict that only has the matching wildcards 
-#    the output file is then indexed ONLY by task, we use {task} so it is generic
-rule group_analysis:
-    #input: expand( bids(root='results',desc='denoised',suffix='bold.nii.gz',**config['input_wildcards']['bold']),zip,**wildcards_bold_notask , allow_missing=True)
-    input: lambda wildcards: expand(bids(root='results',desc='denoised',suffix='bold.nii.gz',**config['input_wildcards']['bold']),\
-                zip, **filter_list(config['input_zip_lists']['bold'], wildcards)) 
-    output: bids(root='results',desc='group',suffix='combined.nii.gz',task='{task}')
-
-
-
-# if you want a rule to run for each subj/(session), then you can use the config['subj_wildcards'] 
-rule aggregate_over_session:
-    input: lambda wildcards: expand(bids(root='results',desc='denoised',suffix='bold.nii.gz',**config['input_wildcards']['bold']),\
-                zip, **filter_list(config['input_zip_lists']['bold'], wildcards)) 
-    output: bids(root='results',desc='sesavg',suffix='bold.nii.gz',**config['subj_wildcards'])
-    
-
-
-#rule avg_t1:
-#    input: expand(bids(root='results',desc='bet',suffix='T1w.nii.gz',**config['input_wildcards']['T1w']), run=config['input_zip_lists']['T1w']['run'], allow_missing=True)
-#    output: bids(root='results',desc='bet',suffix='T1w.nii.gz', **wildcards_no_run)
-
+   
 
