@@ -1,32 +1,97 @@
-from snakebids import bids
+from snakebids import bids, filter_list
 
-#this is actually not needed!
-#subjects = config['subjects']
-#sessions = config['sessions']
-#if len(sessions) == 0:
-#    subj_wildcards = { 'subject': '{subject}'}
-#else:
-#    subj_wildcards = { 'subject': '{subject}', 'session': '{session}' }
+#this adds constraints to the bids naming
+bids_constraints = '[a-zA-Z0-9]+'
+wildcard_constraints:  **{ entity: bids_constraints for imgtype in config['input_lists'].keys() for entity in config['input_lists'][imgtype].keys() }
+ 
 
-#since subjects/sessions are in the input_zip_lists, and input_wildcards..
-# may want to have some flexibility to built different wildcard groups, e.g. for merging dwi 
+
+#things to explain:
+# - using the bids() function to get bids names
+# - using input_path to get pybids inputs
+# - using **input_wildcards with the bids() function to include wildcards grabbed from pybids  -- introduce more than subject/session
+# - using expand() with **subj_wildcards to automatically deal with optional session-level
+# - using expand() with input_lists to specify values in target rules
+# - using expand() with input_zip_lists when not all combinations of wildcards exist
+# - using filter_list() when need to expand over subset of wildcards
 
 
 rule all:
     input: 
-        bet = expand(bids(root='results',desc='bet',suffix='T1w.nii.gz',**config['input_wildcards']['T1w']), zip, **config['input_zip_lists']['T1w']),
+# using the zip lists to expand over all scans, note use of the zip option in expand:
+#        bet = expand(bids(root='results',desc='bet',suffix='T1w.nii.gz',**config['input_wildcards']['T1w']), zip, **config['input_zip_lists']['T1w']),
+        ses_avg = expand(bids(root='results',desc='sesavg',suffix='bold.nii.gz',**config['subj_wildcards']), **config['input_lists']['bold']),
+#        denoised = expand(bids(root='results',desc='denoised',suffix='bold.nii.gz',**config['input_wildcards']['bold']), zip, **config['input_zip_lists']['bold']),
+#
+# using the regular lists to expand: -- this could fail if there are combinations of wildcards leading to files that do not exist.. 
+#        bet = expand(bids(root='results',desc='bet',suffix='T1w.nii.gz',**config['input_wildcards']['T1w']), **config['input_lists']['T1w']),
+#        denoised = expand(bids(root='results',desc='denoised',suffix='bold.nii.gz',**config['input_wildcards']['bold']), **config['input_lists']['bold']),
+#        combined = expand(bids(root='results',desc='group',suffix='combined.nii.gz',task='{task}'), task=config['input_lists']['bold']['task']),
 
 
 
 rule import_t1w:
     input: config['input_path']['T1w']
     output: bids(root='results',suffix='T1w.nii.gz',**config['input_wildcards']['T1w'])
+    shell: 'cp {input} {output}'
 
 
 rule bet:
     input: bids(root='results',suffix='T1w.nii.gz',**config['input_wildcards']['T1w'])
     output: bids(root='results',desc='bet',suffix='T1w.nii.gz',**config['input_wildcards']['T1w'])
-   
+    shell: 'bet {input} {output}'
+
+
+
+
+rule import_bold:
+    input: config['input_path']['bold']
+    output: bids(root='results',suffix='bold.nii.gz',**config['input_wildcards']['bold'])
+    shell: 'cp {input} {output}'
+
+
+
+rule denoise:
+    input: bids(root='results',suffix='bold.nii.gz',**config['input_wildcards']['bold'])
+    output: bids(root='results',desc='denoised',suffix='bold.nii.gz',**config['input_wildcards']['bold'])
+    script: '../scripts/some_denoising_script.py' #this script will get the inputs, outputs, params etc..
+    
+#this rule does processing directly on the bids data (without importing first)
+#rule denoise:
+#    input: config['input_path']['bold']
+#    output: bids(root='results',desc='denoised',suffix='bold.nii.gz',**config['input_wildcards']['bold'])
+
+
+#    this dictionary comprehension does the trick: 
+#     { key: config['input_zip_lists']['bold'] for key not in ['task'] }
+
+
+## WANT TO FILTER THE ZIP_LIST THAT ONLY MATCHES CHOSEN WILDCARD VALUES
+#e.g. 
+#001 movie
+#001 rest
+#002 movie
+#002 rest 
+
+
+# if we want to do some analysis that takes data from all subjects with a single task, then
+#  our output file only has the {task} wildcard, so for the input, you need to expand over all the other wildcards
+#    want to basically create a filtered input_zip_list dict that only has the matching wildcards 
+#    the output file is then indexed ONLY by task, we use {task} so it is generic
+rule group_analysis:
+    #input: expand( bids(root='results',desc='denoised',suffix='bold.nii.gz',**config['input_wildcards']['bold']),zip,**wildcards_bold_notask , allow_missing=True)
+    input: lambda wildcards: expand(bids(root='results',desc='denoised',suffix='bold.nii.gz',**config['input_wildcards']['bold']),\
+                zip, **filter_list(config['input_zip_lists']['bold'], wildcards)) 
+    output: bids(root='results',desc='group',suffix='combined.nii.gz',task='{task}')
+
+
+
+# if you want a rule to run for each subj/(session), then you can use the config['subj_wildcards'] 
+rule aggregate_over_session:
+    input: lambda wildcards: expand(bids(root='results',desc='denoised',suffix='bold.nii.gz',**config['input_wildcards']['bold']),\
+                zip, **filter_list(config['input_zip_lists']['bold'], wildcards)) 
+    output: bids(root='results',desc='sesavg',suffix='bold.nii.gz',**config['subj_wildcards'])
+    
 
 
 #rule avg_t1:
