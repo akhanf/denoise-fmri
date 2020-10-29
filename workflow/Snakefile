@@ -1,10 +1,19 @@
+
+#--- snakebids boilerplate
+
+import snakebids
 from snakebids import bids, filter_list
 
-#this adds constraints to the bids naming
-bids_constraints = '[a-zA-Z0-9]+'
-wildcard_constraints:  **{ entity: bids_constraints for imgtype in config['input_lists'].keys() for entity in config['input_lists'][imgtype].keys() }
- 
+configfile: 'cfg/snakebids.yml'
 
+#writes inputs_config.yml and updates config dict
+snakebids.generate_inputs_config(config)
+
+#this adds constraints to the bids naming
+wildcard_constraints:  **snakebids.get_wildcard_constraints(config)
+
+ 
+#--- rest of workflow below
 
 #things to explain:
 # - using the bids() function to get bids names

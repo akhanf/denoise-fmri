@@ -25,4 +25,18 @@ pybids_inputs:
       - run
       - acquisition
 
-      
+   
+#WIP: setting up analysis levels (e.g. participant, group) to point to different target rules 
+
+
+
+#WIP:  setting up additional cmd-line options via config
+#parser:
+#  init:
+#    description: 'This is a snakebids App'
+#  arguments:
+#    - argument: '--session' 
+#      help: 'Use the specified session, otherwise will process all sessions (default: %(default)s)'
+#    - argument: '--acq' 
+#      help: 'Use the specified session, otherwise will process all sessions (default: %(default)s)'
+#

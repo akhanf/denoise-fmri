@@ -9,7 +9,6 @@ from glob import glob
 from snakemake import snakemake
 from parse import get_parser
 import json
-from snakebids.inputs import get_input_config_from_bids
 
 bids.config.set_option('extension_initial_dot', True)
 
@@ -44,11 +43,15 @@ snakemake_args = all_args[1]
 snakemake_dir = os.path.dirname(os.path.realpath(__file__))
 
 
-#load up workflow config file
-workflow_config = os.path.join(snakemake_dir,'cfg','config.yml')
-with open(workflow_config, 'r') as infile:
-    config = yaml.load(infile, Loader=yaml.FullLoader)
 
+#load up workflow config file
+snakebids_config = os.path.join(snakemake_dir,'cfg','snakebids.yml')
+if not os.path.exists(snakebids_config):
+    print('ERROR: {snakebids_config} does not exist!')
+    sys.exit(1)
+
+with open(snakebids_config, 'r') as infile:
+    config = yaml.load(infile, Loader=yaml.FullLoader)
 
 
 search_terms = dict()
@@ -67,31 +70,24 @@ if args.run is not None:
     search_terms['run'] = args.run
 """
 
-#create inputs config file 
-# (uses pybids to search/grab, stores lookups in a config yaml for snakemake)
-inputs_config = os.path.join(args.output_dir,'code',f'inputs_config.yml')
+#override bids_dir, output_dir, search_terms in snakebids config
+config['search_terms'] = search_terms
+config['bids_dir'] = args.bids_dir
+config['output_dir'] = args.output_dir
 
 
+#create an updated snakebids config file
+updated_config = os.path.join(config['output_dir'],'cfg','snakebids.yml')
 
-layout = BIDSLayout(args.bids_dir,derivatives=False,validate=False,index_metadata=False, **search_terms)
+#write it to file
+os.makedirs(os.path.dirname(updated_config),exist_ok=True)
+with open(updated_config, 'w') as outfile:
+    yaml.dump(config, outfile, default_flow_style=False)
 
-
-inputs_config_dict = get_input_config_from_bids(bids_layout=layout, inputs_dict=config['pybids_inputs'], **search_terms)
-
-inputs_config_dict['subjects'] = layout.get_subjects(**search_terms)
-inputs_config_dict['sessions'] = layout.get_sessions(**search_terms)
-if len(inputs_config_dict['sessions'])  == 0:
-    inputs_config_dict['subj_wildcards'] = { 'subject': '{subject}'}
-else:
-    inputs_config_dict['subj_wildcards'] = { 'subject': '{subject}', 'session': '{session}' }
-
-#write updated config file
-os.makedirs(os.path.dirname(inputs_config),exist_ok=True)
-
-with open(inputs_config, 'w') as outfile:
-    yaml.dump(inputs_config_dict, outfile, default_flow_style=False)
+# run snakemake with that config
 
 
+#workflow snakefile will read snakebids config, create inputs_config, read that in
 
 
 # running participant level
@@ -101,13 +97,13 @@ if args.analysis_level == "participant":
     snakefile = os.path.join(snakemake_dir,'workflow/Snakefile')
     
     if args.use_snakemake_api:
-        snakemake(snakefile,configfiles=[workflow_config, inputs_config], workdir=args.output_dir, dryrun=True, debug_dag=True)
+        snakemake(snakefile,configfiles=[updated_config], workdir=args.output_dir, dryrun=True, debug_dag=True)
     else:
         #run snakemake command-line (passing any leftover args from argparse)
         snakemake_cmd_list = ['snakemake',
                                 f'--snakefile {snakefile}',
-                                f'--directory {args.output_dir}',
-                                f'--configfile {workflow_config} {inputs_config}',
+                                f"--directory {config['output_dir']}",
+                                f'--configfile {updated_config} ',
                                 *snakemake_args]
 
         snakemake_cmd = ' '.join(snakemake_cmd_list)
