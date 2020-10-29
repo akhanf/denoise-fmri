@@ -146,3 +146,20 @@ def bids (root=None, subfolder=None, prefix=None, suffix=None, subject=None, ses
     
     return filename
 
+# this function is used when you are expanding over some subset of the wildcards
+#  i.e. if your output file doesn't contain all the wildcards in input_wildcards
+def filter_list(zip_list, wildcards):
+    size_list = len(next(iter(zip_list)))
+    keep_indices = set()
+    for key,val in wildcards.items():
+        #get indices where wildcard exists
+        indices = set([i for i,v in enumerate(zip_list[key]) if v == val])
+        if len(keep_indices) == 0:
+            keep_indices = indices
+        else:
+            keep_indices = keep_indices.intersection(indices)
+    #now we have the indices, so filter the lists
+    return {key: [ zip_list[key][i] for i in keep_indices  ] for key,val in zip_list.items()}
+
+
+
