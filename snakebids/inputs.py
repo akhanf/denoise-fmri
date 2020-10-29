@@ -17,7 +17,7 @@ def get_input_config_from_bids(bids_layout, inputs_dict, **filters ):
 
     bids_tags = read_bids_tags()
 
-    config = dict({'input_path': {}, 'input_zip_lists': {}, 'input_wildcards': {}})
+    config = dict({'input_path': {}, 'input_zip_lists': {}, 'input_lists': {}, 'input_wildcards': {}})
 
 
 
@@ -28,6 +28,7 @@ def get_input_config_from_bids(bids_layout, inputs_dict, **filters ):
         imgs, = [bids_layout.get(**inputs_dict[input_name]['filters'], **filters)]
         paths = set()
         zip_lists = {}
+        input_lists = {}
         wildcards = {}
         for img in imgs:
             path = img.path
@@ -52,6 +53,7 @@ def get_input_config_from_bids(bids_layout, inputs_dict, **filters ):
  
                     if out_name not in zip_lists:
                         zip_lists[out_name] = []
+                        input_lists[out_name] = set()
                         wildcards[out_name] = {}
                     pattern = '{tag}-([a-zA-Z0-9]+)'.format(tag=bids_tags[wildcard_name])
                     replace = '{tag}-{{{replace}}}'.format(tag=bids_tags[wildcard_name],replace=out_name)
@@ -60,10 +62,11 @@ def get_input_config_from_bids(bids_layout, inputs_dict, **filters ):
                     #update the path with the {wildcards} -- uses the value from the string (not from the pybids entities), since that has issues with integer formatting (e.g. for run=01)
                     path = replaced
                     zip_lists[out_name].append(match[1])
+                    input_lists[out_name].add(match[1])
                     wildcards[out_name] = f'{{{out_name}}}'
-
+                
             paths.add(path)
-            
+        
 
         #now, check to see if unique
         if len(paths) > 1:
@@ -74,11 +77,16 @@ def get_input_config_from_bids(bids_layout, inputs_dict, **filters ):
 
         in_path = list(paths)[0]
 
+        #convert sets to lists
+        for key,val in input_lists.items():
+            input_lists[key] = list(val)
+            
+            
         config['input_path'][input_name] = in_path
         config['input_zip_lists'][input_name] = zip_lists
+        config['input_lists'][input_name] = input_lists
         config['input_wildcards'][input_name] = wildcards
 
-        #print(wildcards)
 
     return config
 
