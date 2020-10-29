@@ -75,13 +75,15 @@ inputs_config = os.path.join(args.output_dir,'code',f'inputs_config.yml')
 
 layout = BIDSLayout(args.bids_dir,derivatives=False,validate=False,index_metadata=False, **search_terms)
 
-#if len(sessions) == 0:
-#    sessions = None
 
 inputs_config_dict = get_input_config_from_bids(bids_layout=layout, inputs_dict=config['pybids_inputs'], **search_terms)
 
 inputs_config_dict['subjects'] = layout.get_subjects(**search_terms)
 inputs_config_dict['sessions'] = layout.get_sessions(**search_terms)
+if len(inputs_config_dict['sessions'])  == 0:
+    inputs_config_dict['subj_wildcards'] = { 'subject': '{subject}'}
+else:
+    inputs_config_dict['subj_wildcards'] = { 'subject': '{subject}', 'session': '{session}' }
 
 #write updated config file
 os.makedirs(os.path.dirname(inputs_config),exist_ok=True)
@@ -99,7 +101,7 @@ if args.analysis_level == "participant":
     snakefile = os.path.join(snakemake_dir,'workflow/Snakefile')
     
     if args.use_snakemake_api:
-        snakemake(snakefile,configfiles=[workflow_config, inputs_config], workdir=args.output_dir, dryrun=True)
+        snakemake(snakefile,configfiles=[workflow_config, inputs_config], workdir=args.output_dir, dryrun=True, debug_dag=True)
     else:
         #run snakemake command-line (passing any leftover args from argparse)
         snakemake_cmd_list = ['snakemake',
