@@ -131,28 +131,26 @@ class SnakeBidsApp:
     # run snakemake with that config
     #workflow snakefile will read snakebids config, create inputs_config, read that in
     def run_snakemake(self):
-        # running participant level
-        if self.config['analysis_level'] == "participant":
+        
+        # running the chosen participant level
 
-            #runs snakemake, using the workflow config and inputs config to override 
-           # snakefile = os.path.join(snakemake_dir,'workflow/Snakefile')
-            
-            
+        analysis_level = self.config['analysis_level']
+        #runs snakemake, using the workflow config and inputs config to override 
+        
+        
 #            if self.config['use_snakemake_api']:
 #                snakemake(self.snakefile,configfiles=[self.updated_config], workdir=config['output_dir'], dryrun=True, debug_dag=True)
 #            else:
-                #run snakemake command-line (passing any leftover args from argparse)
-            snakemake_cmd_list = ['snakemake',
-                                    f'--snakefile {self.snakefile}',
-                                    f"--directory {self.config['output_dir']}",
-                                    f'--configfile {self.updated_config} ',
-                                    *self.config['snakemake_args']]
+            #run snakemake command-line (passing any leftover args from argparse)
+        snakemake_cmd_list = ['snakemake',
+                                f'--snakefile {self.snakefile}',
+                                f"--directory {self.config['output_dir']}",
+                                f'--configfile {self.updated_config} ',
+                                f'--configfile {self.updated_config} ',
+                                *self.config['snakemake_args'],
+                                *self.config['targets_by_analysis_level'][analysis_level]]
 
-            snakemake_cmd = ' '.join(snakemake_cmd_list)
-            run(snakemake_cmd)
+        snakemake_cmd = ' '.join(snakemake_cmd_list)
+        run(snakemake_cmd)
 
-
-        # running group level
-        elif config['analysis_level'] == "group":
-            print('insert report generation here!')
-            
+   

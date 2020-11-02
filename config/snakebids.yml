@@ -1,5 +1,7 @@
 search_terms: {}
  
+bids_dir: 'path_to_bids_dir'
+output_dir: 'path_to_output_dir'
 
 derivatives: True  
   #can alternatively have paths to derivatives folders
@@ -7,6 +9,15 @@ derivatives: True
    #  - paths_to_any_derivatives_for_inputs_here
    #  - paths_to_any_derivatives_for_inputs_here
 
+#mappings from analysis_level to set of target rules or files
+
+analysis_levels: &analysis_levels
+ - participant
+
+
+targets_by_analysis_level:
+  participant:
+    - all
 
 pybids_inputs:
   preproc_bold:
@@ -71,8 +82,6 @@ debug: False
 
 
    
-#WIP: setting up analysis levels (e.g. participant, group) to point to different target rules 
-
 
 #these are the command-line parameters
 parse_args:
@@ -89,8 +98,7 @@ parse_args:
 
   analysis_level: 
     help: Level of the analysis that will be performed. 
-    choices:
-      - participant
+    choices: *analysis_levels
 
   --participant_label:
     help: The label(s) of the participant(s) that should be analyzed. The label 
