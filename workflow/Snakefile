@@ -1,10 +1,9 @@
-
 #--- snakebids boilerplate
 
 import snakebids
 from snakebids import bids, filter_list
 
-configfile: 'cfg/snakebids.yml'
+configfile: 'config/snakebids.yml'
 
 #writes inputs_config.yml and updates config dict
 snakebids.generate_inputs_config(config)
@@ -14,6 +13,12 @@ wildcard_constraints:  **snakebids.get_wildcard_constraints(config)
 
  
 #--- rest of workflow below
+
+
+# WARNING -- paths for input files (e.g. config/ and resources/) will be relative to output working directory if run via snakebids-app, and thus will not be found.. 
+#   current solution is to not use any extra config files 
+#   and for resources/ folder, try to generate it on the fly??
+#    -- should think about workarounds
 
 #things to explain:
 # - using the bids() function to get bids names

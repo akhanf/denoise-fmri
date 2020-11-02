@@ -1,9 +1,14 @@
-pybids_inputs:
-  derivatives: True  
+search_terms: {}
+ 
+
+derivatives: True  
   #can alternatively have paths to derivatives folders
     #derivatives:
    #  - paths_to_any_derivatives_for_inputs_here
    #  - paths_to_any_derivatives_for_inputs_here
+
+
+pybids_inputs:
   preproc_bold:
     filters:
       suffix: 'bold'

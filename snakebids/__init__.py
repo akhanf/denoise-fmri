@@ -269,7 +269,7 @@ def get_input_config_from_bids(config, bids_layout, inputs_dict, **filters ):
 def generate_inputs_config(config):
     """ returns: updated config dict; function will also write the inputs_config.yml to standard output path """
     #generate inputs based on config
-    layout = BIDSLayout(config['bids_dir'],derivatives=config['derivatives'],validate=False,index_metadata=False, **config['search_terms'])
+    layout = BIDSLayout(config['bids_dir'],derivatives=config['derivatives'],validate=False,index_metadata=False)
 
     inputs_config_dict = get_input_config_from_bids(config=config, bids_layout=layout, inputs_dict=config['pybids_inputs'], **config['search_terms'])
 
@@ -281,7 +281,7 @@ def generate_inputs_config(config):
         inputs_config_dict['subj_wildcards'] = { 'subject': '{subject}', 'session': '{session}' }
 
     #write updated config file
-    inputs_config = os.path.join('cfg','inputs_config.yml')
+    inputs_config = os.path.join('config','inputs_config.yml')
     os.makedirs(os.path.dirname(inputs_config),exist_ok=True)
 
     with open(inputs_config, 'w') as outfile:
