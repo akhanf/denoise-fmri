@@ -1,7 +1,4 @@
-template for snakemake bids-app
+# snakebids app for denoising fmriprep output
 
-To do:
- - think about creating miniconda-based dockerfile ?
-  - or copy the snakemake template that installs miniconda etc 
- - make pip package for snakebids
-
+Known issues:
+ - pybids has an incompatibility with the latest fmriprep (20.2.0) dataset_description.json, need to replace this with the version in resources/dataset_description.json for now 
