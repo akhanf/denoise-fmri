@@ -36,7 +36,7 @@ rule all:
         # using the zip lists to expand over all scans, note use of the zip option in expand:
         denoised = expand(
                         expand(
-                            bids(root='results',subfolder='func',desc='denoised',fwhm='{{fwhm}}',confounds='{{confounds_idx}}',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']),
+                            bids(root='results',datatype='func',desc='denoised',fwhm='{{fwhm}}',confounds='{{confounds_idx}}',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']),
                              zip, **config['input_zip_lists']['preproc_bold']),
                         fwhm=config['fwhm'],confounds_idx=range(len(config['confounds'])))
 
@@ -48,8 +48,8 @@ rule smooth:
     params:
         fwhm = lambda wildcards: float(wildcards.fwhm)
     output:
-        nii = bids(root='results',subfolder='func',desc='smoothed',fwhm='{fwhm}',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']),
-        json = bids(root='results',subfolder='func',desc='smoothed',fwhm='{fwhm}',suffix='bold.json',**config['input_wildcards']['preproc_bold'])
+        nii = bids(root='results',datatype='func',desc='smoothed',fwhm='{fwhm}',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']),
+        json = bids(root='results',datatype='func',desc='smoothed',fwhm='{fwhm}',suffix='bold.json',**config['input_wildcards']['preproc_bold'])
     script: 'scripts/smooth.py'
 
 
@@ -57,8 +57,8 @@ rule smooth:
 
 rule denoise:
     input: 
-        nii = bids(root='results',subfolder='func',desc='smoothed',fwhm='{fwhm}',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']),
-        json = bids(root='results',subfolder='func',desc='smoothed',fwhm='{fwhm}',suffix='bold.json',**config['input_wildcards']['preproc_bold']),
+        nii = bids(root='results',datatype='func',desc='smoothed',fwhm='{fwhm}',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']),
+        json = bids(root='results',datatype='func',desc='smoothed',fwhm='{fwhm}',suffix='bold.json',**config['input_wildcards']['preproc_bold']),
         confounds_tsv = config['input_path']['confounds'],
         mask_nii = config['input_path']['preproc_mask']
     params:
@@ -69,22 +69,22 @@ rule denoise:
         low_pass = False,
         high_pass = False,
     output: 
-        nii = bids(root='results',subfolder='func',desc='denoised',fwhm='{fwhm}',confounds='{confounds_idx}',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']),
-        json= bids(root='results',subfolder='func',desc='denoised',fwhm='{fwhm}',confounds='{confounds_idx}',suffix='bold.json',**config['input_wildcards']['preproc_bold'])
+        nii = bids(root='results',datatype='func',desc='denoised',fwhm='{fwhm}',confounds='{confounds_idx}',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']),
+        json= bids(root='results',datatype='func',desc='denoised',fwhm='{fwhm}',confounds='{confounds_idx}',suffix='bold.json',**config['input_wildcards']['preproc_bold'])
     script: 'scripts/denoise.py'
 
                 
 
 rule aroma_nonaggr:
     input: 
-        nii = bids(root='results',subfolder='func',desc='smoothed',fwhm='{fwhm}',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']),
+        nii = bids(root='results',datatype='func',desc='smoothed',fwhm='{fwhm}',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']),
         mixing = config['input_path']['mixing'],
         noiseICs = config['input_path']['noiseICs'],
         mask_nii = config['input_path']['preproc_mask']
     params:
         container = config['singularity']['fsl']
     output: 
-        nii = bids(root='results',subfolder='func',desc='AROMAnonaggr',fwhm='{fwhm}',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']),
+        nii = bids(root='results',datatype='func',desc='AROMAnonaggr',fwhm='{fwhm}',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']),
     container: config['singularity']['fsl']
     shell:
         'fsl_regfilt -i {input.nii} -f `cat {input.noiseICs}` -d {input.mixing} -o {output.nii} -m {input.mask_nii}' 
@@ -92,8 +92,8 @@ rule aroma_nonaggr:
 #this regresses out confounds after aroma 
 rule aroma_aggr:
     input: 
-        nii = bids(root='results',subfolder='func',desc='AROMAnonaggr',fwhm='{fwhm}',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']),
-        json = bids(root='results',subfolder='func',desc='smoothed',fwhm='{fwhm}',suffix='bold.json',**config['input_wildcards']['preproc_bold']),
+        nii = bids(root='results',datatype='func',desc='AROMAnonaggr',fwhm='{fwhm}',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']),
+        json = bids(root='results',datatype='func',desc='smoothed',fwhm='{fwhm}',suffix='bold.json',**config['input_wildcards']['preproc_bold']),
         confounds_tsv = config['input_path']['confounds'],
         mask_nii = config['input_path']['preproc_mask']
     params:
@@ -104,8 +104,8 @@ rule aroma_aggr:
         low_pass = False,
         high_pass = False,
     output: 
-        nii = bids(root='results',subfolder='func',desc='AROMAdenoised',fwhm='{fwhm}',confounds='{confounds_idx}',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']),
-        json= bids(root='results',subfolder='func',desc='AROMAdenoised',fwhm='{fwhm}',confounds='{confounds_idx}',suffix='bold.json',**config['input_wildcards']['preproc_bold'])
+        nii = bids(root='results',datatype='func',desc='AROMAdenoised',fwhm='{fwhm}',confounds='{confounds_idx}',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']),
+        json= bids(root='results',datatype='func',desc='AROMAdenoised',fwhm='{fwhm}',confounds='{confounds_idx}',suffix='bold.json',**config['input_wildcards']['preproc_bold'])
     script: 'scripts/denoise.py'
 
     
