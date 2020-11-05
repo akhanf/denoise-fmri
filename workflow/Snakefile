@@ -38,7 +38,7 @@ rule all:
                         expand(
                             bids(root='results',datatype='func',desc='denoised',fwhm='{{fwhm}}',confounds='{{confounds_idx}}',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']),
                              zip, **config['input_zip_lists']['preproc_bold']),
-                        fwhm=config['fwhm'],confounds_idx=range(len(config['confounds'])))
+                        fwhm=config['fwhm'],confounds_idx=range(1,len(config['confounds'])+1))
 
   
 rule smooth:
@@ -62,8 +62,8 @@ rule denoise:
         confounds_tsv = config['input_path']['confounds'],
         mask_nii = config['input_path']['preproc_mask']
     params:
-        confounds_to_use = lambda wildcards: config['confounds'][int(wildcards.confounds_idx)]['regressors'],
-        confounds_name = lambda wildcards: config['confounds'][int(wildcards.confounds_idx)]['name'],
+        confounds_to_use = lambda wildcards: config['confounds'][int(wildcards.confounds_idx)-1]['regressors'],
+        confounds_name = lambda wildcards: config['confounds'][int(wildcards.confounds_idx)-1]['name'],
         standardize = True,
         detrend = True,
         low_pass = False,
@@ -97,8 +97,8 @@ rule aroma_aggr:
         confounds_tsv = config['input_path']['confounds'],
         mask_nii = config['input_path']['preproc_mask']
     params:
-        confounds_to_use = lambda wildcards: config['confounds'][int(wildcards.confounds_idx)]['regressors'],
-        confounds_name = lambda wildcards: config['confounds'][int(wildcards.confounds_idx)]['name'],
+        confounds_to_use = lambda wildcards: config['confounds'][int(wildcards.confounds_idx)-1]['regressors'],
+        confounds_name = lambda wildcards: config['confounds'][int(wildcards.confounds_idx)-1]['name'],
         standardize = True,
         detrend = True,
         low_pass = False,
