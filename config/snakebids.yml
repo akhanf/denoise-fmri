@@ -296,6 +296,16 @@ parse_args:
           participants can be specified with a space separated list.
     nargs: '+'
 
+  --exclude_participant_label:
+    help: The label(s) of the participant(s) that should be excluded. The label 
+          corresponds to sub-<participant_label> from the BIDS spec 
+          (so it does not include "sub-"). If this parameter is not 
+          provided all subjects should be analyzed. Multiple 
+          participants can be specified with a space separated list.
+    nargs: '+'
+
+  #end of required snakebids args
+
   --confounds_config:
     help: 'Config defining groups of confounds to use for denoising (default: %(default)s)'
     nargs: '+'
