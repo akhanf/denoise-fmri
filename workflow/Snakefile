@@ -14,6 +14,11 @@ wildcard_constraints:  **snakebids.get_wildcard_constraints(config)
  
 #--- rest of workflow below
 
+#additional constraints for wildcards not defined from inputs
+wildcard_constraints:
+    desc='[a-zA-Z0-9]+',
+    fwhm='[0-9]+',
+    confounds='[0-9]+'
 
 
 # WARNING -- paths for input files (e.g. config/ and resources/) will be relative to output working directory if run via snakebids-app, and thus will not be found.. 
@@ -36,9 +41,9 @@ rule all:
         # using the zip lists to expand over all scans, note use of the zip option in expand:
         denoised = expand(
                         expand(
-                            bids(root='results',datatype='func',desc='denoised',fwhm='{{fwhm}}',confounds='{{confounds_idx}}',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']),
+                            bids(root='results',datatype='func',desc='{{desc}}',fwhm='{{fwhm}}',confounds='{{confounds_idx}}',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']),
                              zip, **config['input_zip_lists']['preproc_bold']),
-                        fwhm=config['fwhm'],confounds_idx=range(1,len(config['confounds'])+1))
+                        fwhm=config['fwhm'],confounds_idx=range(1,len(config['confounds'])+1),desc=['denoised','AROMAdenoised'])
 
   
 rule smooth:
