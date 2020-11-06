@@ -21,21 +21,6 @@ wildcard_constraints:
     confounds='[0-9]+'
 
 
-# WARNING -- paths for input files (e.g. config/ and resources/) will be relative to output working directory if run via snakebids-app, and thus will not be found.. 
-#   current solution is to not use any extra config files 
-#   and for resources/ folder, try to generate it on the fly??
-#    -- should think about workarounds
-
-#things to explain:
-# - using the bids() function to get bids names
-# - using input_path to get pybids inputs
-# - using **input_wildcards with the bids() function to include wildcards grabbed from pybids  -- introduce more than subject/session
-# - using expand() with **subj_wildcards to automatically deal with optional session-level
-# - using expand() with input_lists to specify values in target rules
-# - using expand() with input_zip_lists when not all combinations of wildcards exist
-# - using filter_list() when need to expand over subset of wildcards
-
-
 rule all:
     input: 
         # using the zip lists to expand over all scans, note use of the zip option in expand:
