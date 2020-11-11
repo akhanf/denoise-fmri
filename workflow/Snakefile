@@ -40,6 +40,7 @@ rule smooth:
     output:
         nii = bids(root='results',datatype='func',desc='smoothed',fwhm='{fwhm}',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']),
         json = bids(root='results',datatype='func',desc='smoothed',fwhm='{fwhm}',suffix='bold.json',**config['input_wildcards']['preproc_bold'])
+    group: 'subj'
     script: 'scripts/smooth.py'
 
 
@@ -61,6 +62,7 @@ rule denoise:
     output: 
         nii = bids(root='results',datatype='func',desc='denoised',fwhm='{fwhm}',confounds='{confounds_idx}',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']),
         json= bids(root='results',datatype='func',desc='denoised',fwhm='{fwhm}',confounds='{confounds_idx}',suffix='bold.json',**config['input_wildcards']['preproc_bold'])
+    group: 'subj'
     script: 'scripts/denoise.py'
 
                 
@@ -76,6 +78,7 @@ rule aroma_nonaggr:
     output: 
         nii = bids(root='results',datatype='func',desc='AROMAnonaggr',fwhm='{fwhm}',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']),
     container: config['singularity']['fsl']
+    group: 'subj'
     shell:
         'fsl_regfilt -i {input.nii} -f `cat {input.noiseICs}` -d {input.mixing} -o {output.nii} -m {input.mask_nii}' 
 
@@ -96,6 +99,7 @@ rule aroma_aggr:
     output: 
         nii = bids(root='results',datatype='func',desc='AROMAdenoised',fwhm='{fwhm}',confounds='{confounds_idx}',suffix='bold.nii.gz',**config['input_wildcards']['preproc_bold']),
         json= bids(root='results',datatype='func',desc='AROMAdenoised',fwhm='{fwhm}',confounds='{confounds_idx}',suffix='bold.json',**config['input_wildcards']['preproc_bold'])
+    group: 'subj'
     script: 'scripts/denoise.py'
 
     
