@@ -93,7 +93,7 @@ pybids_inputs:
       - run
 
 #enable printing debug statements during parsing -- disable if generating dag visualization
-debug: False
+debug: True
 
 singularity:
   fsl: '/project/6050199/akhanf/singularity/bids-apps/fsl_6.0.4_cuda9.1.sif' 
