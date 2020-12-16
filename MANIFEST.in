@@ -1,0 +1,3 @@
+recursive-include denoise_fmri/resources *
+recursive-include denoise_fmri/config *
+recursive-include denoise_fmri/workflow *

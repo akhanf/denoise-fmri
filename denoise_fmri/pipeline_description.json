@@ -1,0 +1,15 @@
+{
+    "Name": "denoise_fmri - BIDS app for denoising fmriprep outputs",
+    "BIDSVersion": "1.4.0",
+    "DatasetType": "derivative",
+    "GeneratedBy": [
+        {
+            "Name": "denoise_fmri",
+            "Version": "0.1.0",
+            "CodeURL": "http://github.com/akhanf/denoise-fmri",
+            "Author": "Ali Khan",
+            "AuthorEmail": "ali.khan@uwo.ca"
+ 
+        }
+    ]
+}
