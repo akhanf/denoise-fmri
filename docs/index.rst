@@ -24,7 +24,6 @@
   :hidden:
   :maxdepth: 1
 
-  usage/app_cli
   usage/snakemake_cli
 
 
