@@ -19,9 +19,9 @@ import sphinx_rtd_theme
 # -- Project information -----------------------------------------------------
 
 
-project = 'app_name'
-copyright = '2020, Authors here'
-author = 'Authors here'
+project = 'denoise-fmri'
+copyright = '2021, Ali Khan'
+author = 'Ali Khan'
 
 
 # -- General configuration ---------------------------------------------------
