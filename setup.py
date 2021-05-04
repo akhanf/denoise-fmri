@@ -33,8 +33,8 @@ setuptools.setup(
         'denoise_fmri=denoise_fmri.run:main'
     ]},
     install_requires=[
-        "snakebids>=0.2.0",
-        "snakemake>=5.28.0",
+        "snakebids>=0.3.9",
+        "snakemake>=6",
         "nilearn",
         "pandas",
         "numpy"
